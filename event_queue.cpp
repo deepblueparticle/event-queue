@@ -11,11 +11,11 @@ TimePoint now() {
 
 
 bool operator<(const EventPtr& lhs, const EventPtr& rhs) {
-    return lhs->nextTime > rhs->nextTime;
+    return lhs->triggerTime > rhs->triggerTime;
 }
 
 
-Task EventQueue::addEvent(Event::Kind kind, int interval, Callback callback) {
+TaskPtr EventQueue::addEvent(Event::Kind kind, int interval, Callback callback) {
     if (interval < 0) {
         throw std::runtime_error("interval must be non-negative.");
     }
@@ -24,7 +24,7 @@ Task EventQueue::addEvent(Event::Kind kind, int interval, Callback callback) {
         kind,
         Event::kActive,
         callback,
-        interval,
+        std::chrono::milliseconds(interval),
         now() + std::chrono::milliseconds(interval)
     ));
     
@@ -35,7 +35,7 @@ Task EventQueue::addEvent(Event::Kind kind, int interval, Callback callback) {
     
     waiter_.notify_one();
     
-    return Task(event);
+    return std::make_unique<Task>(event);
 }
 
 
@@ -61,7 +61,7 @@ void EventQueue::run() {
             continue;
         }
         
-        waiter_.wait_until(lock, event->nextTime, [this]() {return interrupt_;});
+        waiter_.wait_until(lock, event->triggerTime, [this]() {return interrupt_;});
         
         if (interrupt_) {
             interrupt_ = false;
@@ -70,7 +70,7 @@ void EventQueue::run() {
             if (event->status == Event::kActive){
                 event->callback();
                 if (event->kind == Event::kRepeating) {
-                    event->nextTime = now() + event->interval;
+                    event->triggerTime = now() + event->triggerInterval;
                     queue_.push(event);
                 } else {
                     event->status = Event::kCompleted;
@@ -90,5 +90,4 @@ void EventQueue::quit() {
         lock.unlock();
         waiter_.notify_one();
     }
-    
 }

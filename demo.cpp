@@ -38,12 +38,12 @@ Callback createMessageCallback(const std::string& message) {
 
 int main() {
     EventQueue q;
-    std::vector<Task> events;
+    std::vector<TaskPtr> tasks;
     
     std::cout << attachTime("Adding 2 events in queue\n");
     
-    events.push_back(q.setTimeout(2500, createMessageCallback("Event 1: single, 2500ms\n")));
-    events.push_back(q.setInterval(1000, createMessageCallback("Event 2: repeating, 1000ms\n")));
+    tasks.push_back(q.setTimeout(2500, createMessageCallback("Event 1: single, 2500ms\n")));
+    tasks.push_back(q.setInterval(1000, createMessageCallback("Event 2: repeating, 1000ms\n")));
     
     std::cout << attachTime("Starting queue in a separate thread\n");
     std::thread runThread([&q](){q.run();});
@@ -52,26 +52,26 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(5500));
     
     std::cout << attachTime("Adding 2 another events\n");
-    events.push_back(q.setInterval(700, createMessageCallback("Event 3: repeating, 700ms\n")));
-    events.push_back(q.setTimeout(3000, createMessageCallback("Event 4: single, 3000ms\n")));
+    tasks.push_back(q.setInterval(700, createMessageCallback("Event 3: repeating, 700ms\n")));
+    tasks.push_back(q.setTimeout(3000, createMessageCallback("Event 4: single, 3000ms\n")));
     
     std::cout << attachTime("Pause the main thread for a 4000ms\n");
     std::this_thread::sleep_for(std::chrono::milliseconds(4000));
     
     std::cout << attachTime("Cancelling periodic event 2\n");
-    events[1].cancel();
+    tasks[1]->cancel();
     
     std::cout << attachTime("Pause the main thread for a 2000ms\n");
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     
     std::cout << attachTime("Adding 4 another events\n");
-    events.push_back(q.setInterval(500, createMessageCallback("Event 5: repeating, 500ms\n")));
-    events.push_back(q.setTimeout(1500, createMessageCallback("Event 6: single, 1500ms\n")));
-    events.push_back(q.setTimeout(1000, createMessageCallback("Event 7: single, 1000ms\n")));
-    events.push_back(q.setTimeout(5000, createMessageCallback("Event 8: single, 6000ms\n")));
+    tasks.push_back(q.setInterval(500, createMessageCallback("Event 5: repeating, 500ms\n")));
+    tasks.push_back(q.setTimeout(1500, createMessageCallback("Event 6: single, 1500ms\n")));
+    tasks.push_back(q.setTimeout(1000, createMessageCallback("Event 7: single, 1000ms\n")));
+    tasks.push_back(q.setTimeout(5000, createMessageCallback("Event 8: single, 6000ms\n")));
     
     std::cout << attachTime("Cancelling timeout event 6, so it won't be executed\n");
-    events[5].cancel();
+    tasks[5]->cancel();
     
     std::cout << attachTime("Stopping the queue\n");
     q.quit();
@@ -95,9 +95,9 @@ int main() {
     q.run();
     
     std::cout << "\nNow let's check event statuses:\n\n";
-    for (int i = 0; i < events.size(); ++i) {
+    for (int i = 0; i < tasks.size(); ++i) {
         std::cout << "Event " << i + 1 << " "
-                  << (events[i].completed() ? "completed.\n" : "not completed.\n");
+                  << (tasks[i]->completed() ? "completed.\n" : "not completed.\n");
     }
     
     std::cout << "\nAll seems correct.\n";

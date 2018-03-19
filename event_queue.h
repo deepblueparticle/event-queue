@@ -4,11 +4,10 @@
 #include <chrono>
 #include <condition_variable>
 #include <functional>
-#include <mutex>
-#include <thread>
-#include <queue>
-#include <unordered_set>
 #include <memory>
+#include <mutex>
+#include <queue>
+#include <thread>
 
 
 using Callback = std::function<void()>;
@@ -19,27 +18,28 @@ struct Event {
     typedef enum {kSingle, kRepeating} Kind;
     typedef enum {kActive, kCompleted, kCanceled} Status;
     
-    Event(Kind kind, Status status, Callback callback, int interval, TimePoint nextTime)
+    Event(Kind kind, Status status, Callback callback,
+          std::chrono::milliseconds triggerInterval, TimePoint triggerTime)
         : kind(kind)
         , status(status)
-        , callback(std::move(callback))
-        , interval(interval)
-        , nextTime(nextTime)
+        , callback(callback)
+        , triggerInterval(triggerInterval)
+        , triggerTime(triggerTime)
     {}
     
     Kind kind;
     std::atomic<Status> status;
     Callback callback;
-    std::chrono::milliseconds interval;
-    TimePoint nextTime;
+    std::chrono::milliseconds triggerInterval;
+    TimePoint triggerTime;
 };
-
 using EventPtr = std::shared_ptr<Event>;
 
 
 class Task {
 public:
     Task(EventPtr event) : event(event) {}
+    ~Task() { cancel(); }
     bool completed() const {
         return event->status == Event::kCompleted;
     }
@@ -57,14 +57,15 @@ public:
 private:
     EventPtr event;
 };
+using TaskPtr = std::unique_ptr<Task>;
 
 
 class EventQueue {
 public:
-    Task setTimeout(int interval, Callback callback) {
+    TaskPtr setTimeout(int interval, Callback callback) {
         return addEvent(Event::kSingle, interval, callback);
     }
-    Task setInterval(int interval, Callback callback) {
+    TaskPtr setInterval(int interval, Callback callback) {
         return addEvent(Event::kRepeating, interval, callback);
     }
     void run();
@@ -78,5 +79,5 @@ private:
     std::mutex mutex_;
     std::priority_queue<EventPtr> queue_;
     
-    Task addEvent(Event::Kind kind, int interval, Callback callback);
+    TaskPtr addEvent(Event::Kind kind, int interval, Callback callback);
 };
