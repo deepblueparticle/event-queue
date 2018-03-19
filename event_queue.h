@@ -72,11 +72,11 @@ public:
     void quit();
 
 private:
-    std::thread::id runThreadId_;
     std::atomic_bool run_ = {false};
-    std::condition_variable waiter_;
-    bool interrupt_;
+    std::thread::id runThreadId_;
     std::mutex mutex_;
+    std::condition_variable waiter_;
+    bool interruptWait_;
     std::priority_queue<EventPtr> queue_;
     
     TaskPtr addEvent(Event::Kind kind, int interval, Callback callback);

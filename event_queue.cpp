@@ -20,17 +20,15 @@ TaskPtr EventQueue::addEvent(Event::Kind kind, int interval, Callback callback) 
         throw std::runtime_error("interval must be non-negative.");
     }
     
-    EventPtr event(new Event(
+    EventPtr event = std::make_shared<Event>(
         kind,
         Event::kActive,
         callback,
         std::chrono::milliseconds(interval),
-        now() + std::chrono::milliseconds(interval)
-    ));
-    
+        now() + std::chrono::milliseconds(interval));
     std::unique_lock<std::mutex> lock(mutex_);
     queue_.push(event);
-    interrupt_ = true;
+    interruptWait_ = true;
     lock.unlock();
     
     waiter_.notify_one();
@@ -45,12 +43,12 @@ void EventQueue::run() {
         return;
     }
     runThreadId_ = std::this_thread::get_id();
-    interrupt_ = false;
+    interruptWait_ = false;
     while (run_) {
         std::unique_lock<std::mutex> lock(mutex_);
         if (queue_.empty()) {
-            waiter_.wait(lock, [this]() {return interrupt_;});
-            interrupt_ = false;
+            waiter_.wait(lock, [this]() {return interruptWait_;});
+            interruptWait_ = false;
             if (!run_) {
                 break;
             }
@@ -61,13 +59,13 @@ void EventQueue::run() {
             continue;
         }
         
-        waiter_.wait_until(lock, event->triggerTime, [this]() {return interrupt_;});
+        waiter_.wait_until(lock, event->triggerTime, [this]() {return interruptWait_;});
         
-        if (interrupt_) {
-            interrupt_ = false;
+        if (interruptWait_) {
+            interruptWait_ = false;
         } else {
             queue_.pop();
-            if (event->status == Event::kActive){
+            if (event->status == Event::kActive) {
                 event->callback();
                 if (event->kind == Event::kRepeating) {
                     event->triggerTime = now() + event->triggerInterval;
@@ -86,7 +84,7 @@ void EventQueue::quit() {
     // We can't do this from the same thread as quit is called from the locked section.
     if (wasRunning && std::this_thread::get_id() != runThreadId_) {
         std::unique_lock<std::mutex> lock(mutex_);
-        interrupt_ = true;
+        interruptWait_ = true;
         lock.unlock();
         waiter_.notify_one();
     }
