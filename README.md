@@ -1,4 +1,4 @@
-Implementation of an event queue as a test problem solution.
+Implementation of an event queue as a test task solution.
 
 Task description
 ================
