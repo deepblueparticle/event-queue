@@ -25,9 +25,9 @@ public:
     void cancel();
 };
 ```
-The method `cancel` removes the tasks from the queue. The method `completed` checks whether a task was completed: a "timeout" task is completed when it was executed, a "interval" task is completed when it was canceled. 
+The method `cancel` removes the tasks from the queue. The method `completed` checks whether a task was completed: a timeout" task is completed when it was executed, an "interval" task is completed when it was canceled. 
 
-It was also asked to call `cancel` method when a `Task` object is destroyed, but as specified it looks like not the best idea. If we pass or return `Task` by value then temporary objects are created and destroyed and the corresponding event will be removed from the queue unexpectedly. To overcome this problems I decided to return `TaskPtr = std::unique_ptr<Task>` from these methods. This way we still can cancel `Task` manually and when a pointer goes out of a scope the `Task` is destroyed and the corresponding event is removed from the queue as well. So it seems like a satisfactory solution. Note that passing `TaskPtr` around relies on move semantics.
+It was also asked to call `cancel` method when a `Task` object is destroyed, but as specified it looks like not the best idea. If we pass or return `Task` by value then temporary objects are created and destroyed and the corresponding event will be removed from the queue unexpectedly. To overcome this problems I decided to return `std::unique_ptr<Task>` from these methods. This way we still can cancel `Task` manually and when the pointer goes out of scope the `Task` is destroyed and the corresponding event is removed from the queue as well. So it seems like a satisfactory solution. Note that passing `std::unique_ptr<Task>` around relies on move semantics.
 
 The algorithm
 -------------
@@ -35,9 +35,9 @@ Events are stored in a priority queue with target times of execution as keys. At
 
 To allow other threads to modify the queue we use condition variables to implement waiting. If the wait was interrupted, we don't execute the selected event and start the step from the beginning.
 
-There is a special interaction between `run` and `quit` methods to account for multithreading context. The problem is that we can't guarantee `run` and `quit`execution order from different threads. It means that a undesired (perhaps rare) situation is possible when `quit` was called before `run` and then the queue runs forever. To avoid that `quit` is implemented such that it waits until `run` is called and then cancels it. The consequence of that is that we should not run `quit`, when there was no `run` calls in this thread before or in other threads.
+There is a special interaction between `run` and `quit` methods to account for multithreading. The problem is that we can't guarantee `run` and `quit` execution order from different threads. It means that a undesired (perhaps rare) situation is possible when `quit` was called before `run` and then the queue runs forever. To avoid that `quit` is implemented such that it waits until `run` is called and then cancels it. The consequence of that is that we should not run `quit`, when there was no `run` calls in this thread before or in other threads.
 
-See the details regarding multithreading in the code. I'm not sure that I get everything right, but it all seem reasonable.
+See the details regarding multithreading in the code. I'm not sure that I get everything right, but it seems reasonable.
 
 Building
 ========
