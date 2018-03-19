@@ -1,4 +1,4 @@
-A demo implementation of an event queue.
+Implementation of an event queue as a test problem solution.
 
 Task description
 ================
