@@ -80,9 +80,13 @@ void EventQueue::run() {
 
 
 void EventQueue::quit() {
-    bool wasRunning = run_.exchange(false);
+    bool expected;
+    do {
+        expected = true;
+    } while (!run_.compare_exchange_weak(expected, false));
+    
     // We can't do this from the same thread as quit is called from the locked section.
-    if (wasRunning && std::this_thread::get_id() != runThreadId_) {
+    if (std::this_thread::get_id() != runThreadId_) {
         std::unique_lock<std::mutex> lock(mutex_);
         interruptWait_ = true;
         lock.unlock();
